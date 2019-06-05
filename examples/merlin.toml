@@ -1,0 +1,32 @@
+[app]
+# `backend` could be any one of or a list of:
+#  - discord
+#  - irc
+#  - skype
+#  - slack
+#  - tcp
+#  - twitch
+#  - twitter
+backend =
+
+# `source` can be a path to a file or a directory
+# this path is relative to the configuration file.
+
+# source =
+
+# Channel constants are a path string "CHANNEL_ID"
+# OR a list of them: ["CHANNEL_ID", ...]
+# OR a refrence to a channel: "channel://NAME"
+
+[config.discord]
+# `inbound` and `outbound` must be channel constants
+inbound = "channel"
+# outbound = inbound
+
+token = "token"
+# bot = true
+
+[config.irc]
+# `inbound` and `outbound` must be channel constants
+inbound = "channel"
+# outbound = inbound

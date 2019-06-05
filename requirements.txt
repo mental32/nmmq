@@ -1,0 +1,4 @@
+discord.py==1
+pydle==0.9.1 
+click
+toml
