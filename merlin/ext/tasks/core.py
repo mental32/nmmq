@@ -2,63 +2,115 @@ import asyncio
 import inspect
 import logging
 
-import aiohttp
-import websockets
-import discord
-
 log = logging.getLogger(__name__)
 
 MAX_ASYNCIO_SECONDS = 3456000
 
-class Loop:
-    """A background task helper that abstracts the loop and reconnection logic for you.
+class Task:
+    """asyncio.Task but for humans.
 
-    The main interface to create this is through :func:`loop`.
+    ```
+    import asyncio
+
+    from merlin.ext.tasks import Task
+
+    @Task(seconds=10, args={'n': 0})
+    async def some_task(n):
+        n += 1
+        print(n)
+
+    asyncio.run(some_task())
+    ```
     """
-    def __init__(self, coro, seconds, hours, minutes, count, reconnect, loop):
-        self.coro = coro
+    def __init__(self, seconds, hours, minutes, count, reconnect, loop):
+        if count is not None and count <= 0:
+            raise ValueError('count must be greater than 0 or None.')
+        else:
+            self.count = count
+
         self.seconds = seconds
         self.hours = hours
         self.minutes = minutes
 
+        sleep = seconds + (minutes * 60.0) + (hours * 3600.0)
+
+        if sleep >= MAX_ASYNCIO_SECONDS:
+            fmt = 'Total number of seconds exceeds asyncio imposed limit of {0} seconds.'
+            raise ValueError(fmt.format(MAX_ASYNCIO_SECONDS))
+
+        elif sleep < 0:
+            raise ValueError('Total number of seconds cannot be less than zero.')
+
+        else:
+            self._sleep = sleep
+
         self.loop = loop or asyncio.get_event_loop()
-        self.count = count
+        self.coro = None
         self._current_loop = 0
         self._task = None
         self._injected = None
-
         self._before_loop = None
         self._after_loop = None
         self._is_being_cancelled = False
         self._has_failed = False
         self._stop_next_iteration = False
 
-        if self.count is not None and self.count <= 0:
-            raise ValueError('count must be greater than 0 or None.')
+    def __get__(self, obj, objtype):
+        if obj is not None:
+            self._injected = obj
+        return self
 
-        self._sleep = sleep = self.seconds + (self.minutes * 60.0) + (self.hours * 3600.0)
-        if sleep >= MAX_ASYNCIO_SECONDS:
-            fmt = 'Total number of seconds exceeds asyncio imposed limit of {0} seconds.'
-            raise ValueError(fmt.format(MAX_ASYNCIO_SECONDS))
-
-        if sleep < 0:
-            raise ValueError('Total number of seconds cannot be less than zero.')
-
-        if not inspect.iscoroutinefunction(self.coro):
-            raise TypeError('Expected coroutine function, not {0.__name__!r}.'.format(type(self.coro)))
-
-    async def _call_loop_function(self, name):
-        coro = getattr(self, '_' + name)
-        if coro is None:
-            return
-
-        if self._injected is not None:
-            await coro(self._injected)
+    async def __call__(self, *args, **kwargs):
+        if self.coro is not None:
+            return await self.coro(*args, **kwargs)
         else:
-            await coro()
+            coro = args[0]
+
+        if not inspect.iscoroutinefunction(coro):
+            raise TypeError(f'Expected coroutine function, received {type(coro).__name__!r}.')
+        else:
+            self.coro = coro
+
+    # Properties
+
+    @property
+    def is_being_cancelled(self):
+        """:class:`bool`: Whether the task is being cancelled."""
+        return self._is_being_cancelled
+
+    @property
+    def failed(self):
+        """:class:`bool`: Whether the internal task has failed."""
+        return self._has_failed
+
+    @property
+    def current_loop(self):
+        """:class:`int`: The current iteration of the loop."""
+        return self._current_loop
+
+    @property
+    def task(self):
+        """Optional[:class:`asyncio.Task`]: Fetches the internal task or ``None`` if there isn't one running."""
+        return self._task
+
+    # Private
+
+    @property
+    def _can_be_cancelled(self):
+        return not self._is_being_cancelled and self._task and not self._task.done()
 
     async def _loop(self, *args, **kwargs):
-        await self._call_loop_function('before_loop')
+        def _get_loop_function(self, name):
+            coro = getattr(self, '_' + name)
+            if coro is None:
+                return
+
+            if self._injected is not None:
+                return coro(self._injected)
+            else:
+                return coro()
+
+        await _get_loop_function('before_loop')
 
         try:
             while True:
@@ -83,21 +135,13 @@ class Loop:
             raise
 
         finally:
-            await self._call_loop_function('after_loop')
+            await _get_loop_function('after_loop')
             self._is_being_cancelled = False
             self._current_loop = 0
             self._stop_next_iteration = False
             self._has_failed = False
 
-    def __get__(self, obj, objtype):
-        if obj is not None:
-            self._injected = obj
-        return self
-
-    @property
-    def current_loop(self):
-        """:class:`int`: The current iteration of the loop."""
-        return self._current_loop
+    # Public
 
     def start(self, *args, **kwargs):
         r"""Starts the internal task in the event loop.
@@ -119,15 +163,16 @@ class Loop:
         :class:`asyncio.Task`
             The task that has been created.
         """
-
         if self._task is not None and not self._task.done():
             raise RuntimeError('Task is already launched and is not completed.')
 
-        if self._injected is not None:
+        elif self._injected is not None:
             args = (self._injected, *args)
 
-        self._task = self.loop.create_task(self._loop(*args, **kwargs))
-        return self._task
+        else:
+            self._task = task = self.loop.create_task(self._loop(*args, **kwargs))
+
+        return task
 
     def stop(self):
         r"""Gracefully stops the task from running.
@@ -142,18 +187,14 @@ class Loop:
             it succeeds.
 
             If this is undesirable, either remove the error handling
-            before stopping via :meth:`clear_exception_types` or
             use :meth:`cancel` instead.
         """
         if self._task and not self._task.done():
             self._stop_next_iteration = True
 
-    def _can_be_cancelled(self):
-        return not self._is_being_cancelled and self._task and not self._task.done()
-
     def cancel(self):
         """Cancels the internal task, if it is running."""
-        if self._can_be_cancelled():
+        if self._can_be_cancelled:
             self._task.cancel()
 
     def restart(self, *args, **kwargs):
@@ -175,27 +216,14 @@ class Loop:
             self._task.remove_done_callback(restart_when_over)
             self.start(*args, **kwargs)
 
-        if self._can_be_cancelled():
+        if self._can_be_cancelled:
             self._task.add_done_callback(restart_when_over)
             self._task.cancel()
 
-    def get_task(self):
-        """Optional[:class:`asyncio.Task`]: Fetches the internal task or ``None`` if there isn't one running."""
-        return self._task
-
-    def is_being_cancelled(self):
-        """:class:`bool`: Whether the task is being cancelled."""
-        return self._is_being_cancelled
-
-    def failed(self):
-        """:class:`bool`: Whether the internal task has failed."""
-        return self._has_failed
+    # Decorators
 
     def before_loop(self, coro):
         """A decorator that registers a coroutine to be called before the loop starts running.
-
-        This is useful if you want to wait for some bot state before the loop starts,
-        such as :meth:`discord.Client.wait_until_ready`.
 
         The coroutine must take no arguments (except ``self`` in a class context).
 
@@ -209,9 +237,8 @@ class Loop:
         TypeError
             The function was not a coroutine.
         """
-
         if not inspect.iscoroutinefunction(coro):
-            raise TypeError('Expected coroutine function, received {0.__name__!r}.'.format(type(coro)))
+            raise TypeError(f'Expected coroutine function, received {type(coro).__name__!r}.')
 
         self._before_loop = coro
         return coro
@@ -238,7 +265,7 @@ class Loop:
             The function was not a coroutine.
         """
         if not inspect.iscoroutinefunction(coro):
-            raise TypeError('Expected coroutine function, received {0.__name__!r}.'.format(type(coro)))
+            raise TypeError(f'Expected coroutine function, received {type(coro).__name__!r}.')
 
         self._after_loop = coro
         return coro
