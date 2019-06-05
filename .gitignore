@@ -103,14 +103,27 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# Everything in the source directory,
-/merlin/*
+# Everything.
+/*
 
-# Apart from the core functionaility.
-!/merlin/core
-!/merlin/ext
+# Apart from some stuff.
+!/requirements.txt
+!/setup.py
+!/Pipfile*
+!/README.md
+!/examples/
+!/docs/
+!/Makefile
+
+!/.flake8
+!/.gitignore
+
+!/merlin/core/**/*
+
+# Have to redeny `__pycache__` twice 
+# since the previous rule overrides.
+/**/__pycache__/
+
+!/merlin/ext/
 !/merlin/__init__.py
 !/merlin/__main__.py
-
-# Auto genarated script.
-/scripts/merlin
