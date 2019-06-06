@@ -85,7 +85,7 @@ def _assert_configuration(config: dict) -> None:
 @click.command(name='merlin')
 @click.argument('sources', nargs=-1)
 @click.option('-c', '--config', default=None)
-@click.option('-s', '--serve', '--server', is_flag=True)
+@click.option('-s', '--serve', '--server', is_flag=True, default=False)
 def main(sources, config, serve):
     if not sources and config is None:
         raise UsageError('Either source or config must be supplied')
@@ -101,6 +101,8 @@ def main(sources, config, serve):
                 break
         else:
             raise sys.exit(f'Could not find a configuration file in any of the sources.')
+
+        cfg_path = path
 
         with open(str(path.absolute())) as file:
             config = toml.load(file)
@@ -124,7 +126,7 @@ def main(sources, config, serve):
     resolved = []
 
     for source in sources:
-        if not source.exists():
+        if source.exists():
             resolved.append(source)
         else:
             logging.warning(f'Source path does not exist: "{source}"')
@@ -132,7 +134,7 @@ def main(sources, config, serve):
     config['app']['source'] = resolved
 
     try:
-        if server:
+        if serve:
             _tcp_serve(config)
         else:
             spawn(config=config)

@@ -1,5 +1,6 @@
 import re
 import pathlib
+import setuptools
 from setuptools import setup
 
 with open('requirements.txt') as file:
@@ -16,19 +17,9 @@ with open('merlin/__init__.py') as file:
 
     version = match[0]
 
-path = pathlib.Path('.').absolute().joinpath('merlin/core/backend')
-backends = ['merlin.core.backend.{0}'.format(path.name) for path in filter((lambda f: f.is_dir()), path.iterdir())]
+packages = ['merlin'] + ['merlin.%s' % name for name in setuptools.find_namespace_packages('./merlin')]
+packages.remove('merlin.ext')
 
-ext_path = pathlib.Path('.').absolute().joinpath('merlin/ext')
-extensions = ['merlin.ext.{0}'.format(path.name) for path in filter((lambda f: f.is_dir()), ext_path.iterdir())]
-
-packages = [
-    'merlin',
-    'merlin.core',
-    'merlin.core.backend',
-    'merlin.core.tcp',
-    *extensions
-]
 
 classifiers = [
     'Intended Audience :: Developers',
@@ -42,7 +33,7 @@ classifiers = [
 
 kwargs = {
     'version': version,
-    'packages': [*packages, *backends],
+    'packages': packages,
     'install_requires': requirements,
     'long_description': long_description,
     'classifiers': classifiers

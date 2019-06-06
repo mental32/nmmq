@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import traceback
+import sys
 from contextlib import suppress
 from functools import partial
 from pathlib import Path
@@ -38,9 +39,8 @@ class Client(discord.Client, AbstractClient):
 
     # Staticmethods
 
-    @staticmethod
-    def _assert_configuration(config):
-        backend = config['app']['config']['discord']
+    def _assert_configuration(self, config):
+        backend = config['config']['discord']
 
         if 'inbound' not in backend:
             raise KeyError('Missing inbound channel.')
@@ -164,20 +164,19 @@ class Client(discord.Client, AbstractClient):
 
     async def spawn(self, config):
         self._assert_configuration(config)
-        self._config = _config = Configuration(config, 'discord')
+        self._config = _config = Configuration(config, backend='discord')
 
-        path = Path(config['app']['source']).absolute()
+        listeners, services = service.load_from(config['app']['source'], self)
 
-        assert path.exists(), 'Source path does not exist?'
-
-        self._listeners.update(service.load_from(path, self))
+        self.services = services
+        self._listeners.update(listeners)
 
         self.dispatch_internal('starting')
 
         try:
             token = _config @ 'token'
         except KeyError:
-            raise RuntimeError('backed.discord: No token found in configuration file.')
+            sys.exit('backed.discord: No token found in configuration file.')
 
         try:
             bot = _config @ 'bot'

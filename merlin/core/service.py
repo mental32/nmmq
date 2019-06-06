@@ -1,6 +1,9 @@
 import inspect
 import importlib
+import logging
 import sys
+import pathlib
+import traceback
 from collections import defaultdict
 from typing import Callable, Dict, Optional
 
@@ -55,7 +58,7 @@ class Service:
         return data
 
 
-def load(path):
+def load(path, *args, **kwargs):
     """Given a path, filter and instantiate classes that derive from `Services`."""
     def _filter(obj):
         return isinstance(obj, type) and obj is not Service and issubclass(obj, Service)
@@ -74,6 +77,7 @@ def load(path):
     sys.path.append(sys_path)
 
     listeners = defaultdict(list)
+    services = {}
 
     for _path in filter(f, path.iterdir()):
         name = _path.name
@@ -90,15 +94,13 @@ def load(path):
             continue
 
         try:
-            module = importlib.import_module(f'{path.name}.{name}', package=path.name)
-        except ModuleNotFoundError:
-            if is_file:
-                module = importlib.import_module(f'{name}', package=path.name)
-            else:
-                raise
+            module = importlib.import_module(f'{name}')
+        except ModuleNotFoundError as err:
+            traceback.print_exc()
+            continue
 
         for name, obj in inspect.getmembers(module, _filter):
-            client.services[name] = service = obj(client)
+            services[name] = service = obj(*args, **kwargs)
 
             for tp, val in service.listeners().items():
                 listeners[tp].extend(val)
@@ -106,10 +108,10 @@ def load(path):
     if is_file:
         sys.path.remove(sys_path)
 
-    return dict(listeners)
+    return dict(listeners), services
 
 
-def load_from(sequence):
+def load_from(sequence, *args, **kwargs):
     """Load services from a sequence of paths.
 
     .. note ::
@@ -125,11 +127,11 @@ def load_from(sequence):
     _services = {}
 
     for path in sequence:
-        listeners_, services = load(path)
+        listeners_, services = load(pathlib.Path(path).absolute(), *args, **kwargs)
 
         _services.update(services)
 
-        for tp, val in listeners.items():
+        for tp, val in listeners_.items():
             _listeners[tp].extend(val)
 
     return dict(_listeners), _services

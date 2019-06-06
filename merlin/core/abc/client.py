@@ -6,6 +6,7 @@ from functools import reduce as _functools_reduce
 from socket import gethostname as _socket_gethostname
 
 from . import State, OpCode, BaseNetwork
+from .packet import AbstractPacket
 
 
 class AbstractClient(metaclass=ABCMeta):
@@ -65,7 +66,7 @@ class AbstractClient(metaclass=ABCMeta):
             try:
                 await asyncio.sleep(next(step))
             except StopIteration:
-                pass
+                break
 
         if self._state is State.Alive:
             return
