@@ -138,7 +138,7 @@ class AbstractClient(metaclass=ABCMeta):
 
         elif op == OpCode.Alive and network.head == self.hostname:
             # We are the network stack head and we must initialize this client.
-            await packet.respond(op=OpCode.Hello, data=network.raw, ttl=15)
+            await packet.respond(op=OpCode.Hello, data=network.into_raw(), ttl=15)
 
         elif op is OpCode.Dead:
             network.remove(packet.data)
