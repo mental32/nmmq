@@ -14,31 +14,15 @@ __all__ = ['OpCode', 'Packet', 'HeartbeatPacket', 'DyingPacket', 'AlivePacket']
 class Packet(AbstractPacket):
     __slots__ = ('author', 'recipient', 'op', 'data', 'ttl', 'timestamp', 'snowflake', '__client', '_message', '__collected')
 
-    def __init__(self, client, channel, *, author: str, op: OpCode, **kwargs):
-        self.seq = kwargs.get('seq') or next(AbstractPacket.sequence_number)
+    def __init__(self, client, channel, **kwargs):
+        self.snowflake = kwargs.pop('snowflake', None)
+
+        super().__init__(**kwargs)
 
         self.__collected = False
         self.__client = client
         self._channel = channel
-        self._message = None
-
-        if not isinstance(op, (OpCode, int)):
-            raise TypeError
-
-        self.op = OpCode(op)
-        self.author = author
-
-        self.data = kwargs.get('data', None)
-        self.snowflake = kwargs.get('snowflake', None)
-        self.recipient = kwargs.get('recipient', None)
-        self.ttl = kwargs.get('ttl', None)
-
-        timestamp = kwargs.get('timestamp', None)
-
-        if timestamp is not None:
-            self.timestamp = int(timestamp)
-        else:
-            self.timestamp = timestamp
+        self._message = None        
 
     # Constructors
 

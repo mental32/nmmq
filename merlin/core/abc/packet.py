@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 from itertools import count as itertools_count
+from typing import Any
 
 from .enums import OpCode
 
@@ -7,16 +8,15 @@ from .enums import OpCode
 class AbstractPacket(metaclass=ABCMeta):
     sequence_number = (i for i in itertools_count())
 
-    def __init__(self, client, *, 
-            author: str, 
+    def __init__(self, *,  
             op: OpCode, 
-            data=None, 
-            recipient=None, 
-            ttl=None, 
-            timestamp=None):
-
-        self.seq = kwargs.get('seq') or next(AbstractPacket.sequence_number)
-        self._client = client
+            author: str = None, 
+            data: Any = None, 
+            recipient: str = None, 
+            ttl: int = None, 
+            timestamp: str = None,
+            seq: int = None):
+        self.seq = seq or next(AbstractPacket.sequence_number)
         self._message = None
 
         if not isinstance(op, (OpCode, int)):
