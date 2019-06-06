@@ -153,7 +153,7 @@ class Client(discord.Client, AbstractClient):
     async def channel_history(self, *args, **kwargs):
         check = kwargs.pop('check', lambda *_: True)
 
-        async for message in self.stack.history(*args, **kwargs):
+        async for message in self.inbound.history(*args, **kwargs):
             try:
                 packet = Packet.from_message(self, message)
             except Exception:
