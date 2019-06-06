@@ -1,6 +1,8 @@
 import asyncio
 import inspect
 import logging
+import traceback
+from contextlib import suppress
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +24,7 @@ class Task:
     asyncio.run(some_task())
     ```
     """
-    def __init__(self, seconds, hours, minutes, count, reconnect, loop):
+    def __init__(self, seconds=0, hours=0, minutes=0, count=None, loop=None):
         if count is not None and count <= 0:
             raise ValueError('count must be greater than 0 or None.')
         else:
@@ -58,18 +60,16 @@ class Task:
     def __get__(self, obj, objtype):
         if obj is not None:
             self._injected = obj
+
         return self
 
-    async def __call__(self, *args, **kwargs):
-        if self.coro is not None:
-            return await self.coro(*args, **kwargs)
-        else:
-            coro = args[0]
-
+    def __call__(self, coro):
         if not inspect.iscoroutinefunction(coro):
             raise TypeError(f'Expected coroutine function, received {type(coro).__name__!r}.')
         else:
             self.coro = coro
+
+        return self
 
     # Properties
 
@@ -100,17 +100,18 @@ class Task:
         return not self._is_being_cancelled and self._task and not self._task.done()
 
     async def _loop(self, *args, **kwargs):
-        def _get_loop_function(self, name):
+        async def _get_loop_function(self, name):
             coro = getattr(self, '_' + name)
             if coro is None:
                 return
 
             if self._injected is not None:
-                return coro(self._injected)
+                return await coro(self._injected)
             else:
-                return coro()
+                return await coro()
 
-        await _get_loop_function('before_loop')
+        with suppress(Exception):
+            await _get_loop_function('before_loop')
 
         try:
             while True:
@@ -129,13 +130,16 @@ class Task:
             self._is_being_cancelled = True
             raise
 
-        except Exception:
+        except Exception as err:
+            traceback.print_exc()
             self._has_failed = True
             log.exception('Internal background task failed.')
             raise
 
         finally:
-            await _get_loop_function('after_loop')
+            with suppress(Exception):
+                await _get_loop_function('after_loop')
+
             self._is_being_cancelled = False
             self._current_loop = 0
             self._stop_next_iteration = False
@@ -169,8 +173,7 @@ class Task:
         elif self._injected is not None:
             args = (self._injected, *args)
 
-        else:
-            self._task = task = self.loop.create_task(self._loop(*args, **kwargs))
+        self._task = task = self.loop.create_task(self._loop(*args, **kwargs))
 
         return task
 
