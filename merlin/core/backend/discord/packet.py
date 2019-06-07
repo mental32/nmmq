@@ -118,10 +118,11 @@ class Packet(AbstractPacket):
         else:
             self.__collected = True
 
-        dead_at = (self.timestamp + self.ttl)
+        if self.ttl is not None:
+            dead_at = (self.timestamp + self.ttl)
 
-        if not time.time() >= dead_at:
-            await asyncio.sleep(int(dead_at - time.time()))
+            while time.time() <= dead_at:
+                await asyncio.sleep(int(dead_at - time.time()))
 
         try:
             await self._message.delete()
