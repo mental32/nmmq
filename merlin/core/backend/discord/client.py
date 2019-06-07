@@ -66,36 +66,27 @@ class Client(discord.Client, AbstractClient):
 
     # Shutdown mechanism
 
-    def _shutdown(self):
+    async def _shutdown(self):
         # If we're already Dead this is a nop
         if self._state is State.Dead:
             return
 
-        loop = asyncio.new_event_loop()
+        async with aiohttp.ClientSession(loop=self.loop) as session:
+            kwargs = {
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Authorization': self.http.token
+                },
 
-        async def _inner_shutdown():
-            async with aiohttp.ClientSession(loop=loop) as session:
-                kwargs = {
-                    'headers': {
-                        'Content-Type': 'application/json',
-                        'Authorization': self.http.token
-                    },
-
-                    'json': {
-                        'content': Packet(self, self.outbound, author=self.hostname, op=OpCode.Dead, ttl=60).encoded_json(),
-                    }
+                'json': {
+                    'content': Packet(self, self.outbound, author=self.hostname, op=OpCode.Dead, ttl=60).encoded_json(),
                 }
+            }
 
-                logging.info('[ DEATH ] Posting Dying packet.')
-                await session.request('POST', self.STACK_MESSAGES_ENDPOINT, **kwargs)
+            logging.info('[ DEATH ] Posting Dying packet.')
+            await session.request('POST', self.STACK_MESSAGES_ENDPOINT, **kwargs)
 
-        try:
-            loop.run_until_complete(_inner_shutdown())
-        except Exception:
-            pass  # Don't care if we fail.
-        finally:
-            self._state = State.Dead
-            loop.close()
+        self._state = State.Dead
 
     # Event handlers
 
@@ -196,6 +187,6 @@ class Client(discord.Client, AbstractClient):
 
         try:
             # Send Dying packet.
-            self._shutdown(loop=self.loop)
-        except Exception:
-            pass
+            await self._shutdown()
+        except Exception as err:
+            logging.error(err)

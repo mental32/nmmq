@@ -22,9 +22,9 @@ def spawn(*args, **kwargs) -> _NoReturn:
     try:
         loop.create_task(client.spawn(*args, **kwargs))
         loop.run_forever()
-    except Exception:
+    except BaseException:
         if loop.is_closed():
-            _logging.warn(f'Eventloop is closed! `Client.shutdown` was not called.')
+            _logging.error(f'Eventloop is closed! `Client.shutdown` was not called.')
             return
 
         # TODO: Gracefully shutdown the event loop
