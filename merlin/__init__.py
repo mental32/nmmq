@@ -6,7 +6,7 @@ from . import core
 from .core import Service
 
 __author__ = 'mental'
-__version__ = '0.1.0'
+__version__ = '0.1.1'
 
 _logging.basicConfig(format='[%(levelname)s] %(message)s', level=_logging.INFO)  # TODO: Setup proper logging environment.
 
