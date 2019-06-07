@@ -6,6 +6,7 @@ from functools import reduce as _functools_reduce
 from socket import gethostname as _socket_gethostname
 
 from . import State, OpCode, BaseNetwork
+from .packet import AbstractPacket
 
 
 class AbstractClient(metaclass=ABCMeta):
@@ -65,7 +66,7 @@ class AbstractClient(metaclass=ABCMeta):
             try:
                 await asyncio.sleep(next(step))
             except StopIteration:
-                pass
+                break
 
         if self._state is State.Alive:
             return
@@ -138,7 +139,7 @@ class AbstractClient(metaclass=ABCMeta):
 
         elif op == OpCode.Alive and network.head == self.hostname:
             # We are the network stack head and we must initialize this client.
-            await packet.respond(op=OpCode.Hello, data=network.raw, ttl=15)
+            await packet.respond(op=OpCode.Hello, data=network.into_raw(), ttl=15)
 
         elif op is OpCode.Dead:
             network.remove(packet.data)

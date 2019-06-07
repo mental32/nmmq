@@ -1,3 +1,6 @@
+from .enums import OpCode
+
+
 class BaseNetwork(list):
     __slots__ = ('backlog',)
 
@@ -14,3 +17,11 @@ class BaseNetwork(list):
 
     def into_raw(self):
         return {'s': self, 'b': self.backlog}
+
+    def reset(self, data=[]):
+        self.backlog = []
+        self.clear()
+        self.extend(data)
+
+    def step(self, op: OpCode):
+        pass

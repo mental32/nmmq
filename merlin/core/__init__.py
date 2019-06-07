@@ -1,4 +1,4 @@
-from . import backend, service
+from . import backend
 from .abc import (
 	AbstractClient,
 	OpCode,
@@ -6,5 +6,6 @@ from .abc import (
 	BaseNetwork
 )
 
+from . import service
 from .cfg import Configuration
 from .service import Service

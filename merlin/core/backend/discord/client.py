@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import traceback
+import sys
 from contextlib import suppress
 from functools import partial
 from pathlib import Path
@@ -38,9 +39,8 @@ class Client(discord.Client, AbstractClient):
 
     # Staticmethods
 
-    @staticmethod
-    def _assert_configuration(config):
-        backend = config['app']['config']['discord']
+    def _assert_configuration(self, config):
+        backend = config['config']['discord']
 
         if 'inbound' not in backend:
             raise KeyError('Missing inbound channel.')
@@ -66,36 +66,27 @@ class Client(discord.Client, AbstractClient):
 
     # Shutdown mechanism
 
-    def _shutdown(self):
+    async def _shutdown(self):
         # If we're already Dead this is a nop
         if self._state is State.Dead:
             return
 
-        loop = asyncio.new_event_loop()
+        async with aiohttp.ClientSession(loop=self.loop) as session:
+            kwargs = {
+                'headers': {
+                    'Content-Type': 'application/json',
+                    'Authorization': self.http.token
+                },
 
-        async def _inner_shutdown():
-            async with aiohttp.ClientSession(loop=loop) as session:
-                kwargs = {
-                    'headers': {
-                        'Content-Type': 'application/json',
-                        'Authorization': self.http.token
-                    },
-
-                    'json': {
-                        'content': Packet(self, self.outbound, author=self.hostname, op=OpCode.Dead, ttl=60).encoded_json(),
-                    }
+                'json': {
+                    'content': Packet(self, self.outbound, author=self.hostname, op=OpCode.Dead, ttl=60).encoded_json(),
                 }
+            }
 
-                logging.info('[ DEATH ] Posting Dying packet.')
-                await session.request('POST', self.STACK_MESSAGES_ENDPOINT, **kwargs)
+            logging.info('[ DEATH ] Posting Dying packet.')
+            await session.request('POST', self.STACK_MESSAGES_ENDPOINT, **kwargs)
 
-        try:
-            loop.run_until_complete(_inner_shutdown())
-        except Exception:
-            pass  # Don't care if we fail.
-        finally:
-            self._state = State.Dead
-            loop.close()
+        self._state = State.Dead
 
     # Event handlers
 
@@ -153,9 +144,9 @@ class Client(discord.Client, AbstractClient):
     async def channel_history(self, *args, **kwargs):
         check = kwargs.pop('check', lambda *_: True)
 
-        async for message in self.stack.history(*args, **kwargs):
+        async for message in self.inbound.history(*args, **kwargs):
             try:
-                packet = Packet.from_message(self, message)
+                packet = Packet.from_message(self, self.inbound, message)
             except Exception:
                 continue
 
@@ -164,20 +155,19 @@ class Client(discord.Client, AbstractClient):
 
     async def spawn(self, config):
         self._assert_configuration(config)
-        self._config = _config = Configuration(config, 'discord')
+        self._config = _config = Configuration(config, backend='discord')
 
-        path = Path(config['app']['source']).absolute()
+        listeners, services = service.load_from(config['app']['source'], self)
 
-        assert path.exists(), 'Source path does not exist?'
-
-        self._listeners.update(service.load_from(path, self))
+        self.services = services
+        self._listeners.update(listeners)
 
         self.dispatch_internal('starting')
 
         try:
             token = _config @ 'token'
         except KeyError:
-            raise RuntimeError('backed.discord: No token found in configuration file.')
+            sys.exit('backed.discord: No token found in configuration file.')
 
         try:
             bot = _config @ 'bot'
@@ -197,6 +187,6 @@ class Client(discord.Client, AbstractClient):
 
         try:
             # Send Dying packet.
-            self._shutdown(loop=self.loop)
-        except Exception:
-            pass
+            await self._shutdown()
+        except Exception as err:
+            logging.error(err)

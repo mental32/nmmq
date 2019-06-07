@@ -10,6 +10,7 @@ class TcpServer:
     _TCP_SERVER_HOST = '127.0.0.1'
     _TCP_SERVER_PORT = 1234
 
+    @staticmethod
     def client_connected(func):
         if not callable(func):
             raise TypeError('callback must be callable!')

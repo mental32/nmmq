@@ -12,7 +12,7 @@ class Configuration(dict):
 
     def search(self, key: Any, *, backend=None) -> Any:
         """A lookup that searches a backends settings before the shared settings"""
-        data = self['app']['config']
+        data = self.get('config', {})
 
         try:
             return data.get(backend or self.backend, {})[key]
