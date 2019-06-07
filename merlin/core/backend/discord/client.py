@@ -146,7 +146,7 @@ class Client(discord.Client, AbstractClient):
 
         async for message in self.inbound.history(*args, **kwargs):
             try:
-                packet = Packet.from_message(self, message)
+                packet = Packet.from_message(self, self.inbound, message)
             except Exception:
                 continue
 
