@@ -5,19 +5,51 @@ from merlin.core import Service
 
 __all__ = ['TcpServer']
 
+
 class TcpServer:
+    """Base class for a raw TCP Server.
+
+    User code should inherit from this class in
+    order to make use of the TCP server.
+
+    ```
+    class Echo(Service, TcpServer)
+        \"\"\"An echo server implementation.\"\"\"
+
+        @TcpServer.client_connected
+        async def callback(self, reader, writer):
+            while True:
+                data = await reader.read(1)
+                writer.write(data)
+                await writer.drain()
+    ```
+    """
     _TCP_SERVER_CB = None
     _TCP_SERVER_HOST = '127.0.0.1'
     _TCP_SERVER_PORT = 1234
 
     @staticmethod
     def client_connected(func):
-        if not callable(func):
-            raise TypeError('callback must be callable!')
+        """A decorator to mark the callback for the server to use.
 
-        elif not inspect.iscoroutinefunction(func):
+        .. note ::
+            This function marks the callback by setting
+            a `__tcp__entry__` attribute to `True`
+
+        Parameters
+        ----------
+        func : Callable[..., Awaitable]
+            The function to mark as the callback function.
+            This must be a coroutine function.
+
+        Raises
+        ------
+        TypeError
+            If a coroutine function was not supplied
+            a `TypeError` will be raised.
+        """
+        if not inspect.iscoroutinefunction(func):
             raise TypeError('callback must be a coroutine function!')
-
         else:
             func.__tcp_entry__ = True
             return func

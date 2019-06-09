@@ -2,6 +2,8 @@ from enum import IntEnum
 
 
 class OpCode(IntEnum):
+    """OpCodes to be used for network communication."""
+
     # Sending a heartbeat out into the network.
     Heartbeat = 0
 
@@ -25,6 +27,7 @@ class OpCode(IntEnum):
 
 
 class State(IntEnum):
+    """States of a client."""
     Dead = 0
     Connected = 1
     Discovery = 2

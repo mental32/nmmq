@@ -6,6 +6,28 @@ from .enums import OpCode
 
 
 class AbstractPacket(metaclass=ABCMeta):
+    """The Abstract Mixin for a "packet".
+
+    Attributes
+    ----------
+    seq : int
+        The sequence number of the packet
+    op : :class:`OpCode`
+        The op code of the packet.
+    author : str
+        The author of the packet
+    data : Any
+        The data of the packet.
+    recipient : str
+        The recipient of the packet.
+    ttl : int
+        The time to live of the packet.
+        once unix time exceeds `timestamp + ttl`
+        the packet should be considered expired and
+        discarded.
+    timestamp : int
+        The timestamp of when the packet was constructed.
+    """
     sequence_number = (i for i in itertools_count())
 
     def __init__(self, *,  
@@ -17,7 +39,6 @@ class AbstractPacket(metaclass=ABCMeta):
             timestamp: str = None,
             seq: int = None):
         self.seq = seq or next(AbstractPacket.sequence_number)
-        self._message = None
 
         if not isinstance(op, (OpCode, int)):
             raise TypeError

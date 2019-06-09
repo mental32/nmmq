@@ -1,6 +1,5 @@
 import asyncio as _asyncio
 import logging as _logging
-from typing import NoReturn as _NoReturn
 
 from . import core
 from .core import Service
@@ -10,8 +9,23 @@ __version__ = '0.1.1'
 
 _logging.basicConfig(format='[%(levelname)s] %(message)s', level=_logging.INFO)  # TODO: Setup proper logging environment.
 
-def spawn(*args, **kwargs) -> _NoReturn:
-    """Start and spin a merlin client and block until it dies."""
+
+def spawn(*args, **kwargs):
+    r"""Start and spin a merlin client and block until it dies.
+
+    This helper setups up boilerplate for:
+     - loading the backend.
+     - constructing the client instance.
+     - spawning and spinning the loop.
+     - handling shutting down.
+
+    Parameters
+    ----------
+    \*args
+        The arguments to use.
+    \*\*kwargs
+        The keyword arguments to use.
+    """
     backend = core.backend.load(kwargs['config']['app']['backend'])
 
     loop = _asyncio.get_event_loop()

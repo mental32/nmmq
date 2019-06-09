@@ -11,18 +11,35 @@ MAX_ASYNCIO_SECONDS = 3456000
 class Task:
     """asyncio.Task but for humans.
 
+    .. _event loop: https://docs.python.org/3/library/asyncio-eventloops.html
+
     ```
     import asyncio
 
     from merlin.ext.tasks import Task
 
-    @Task(seconds=10, args={'n': 0})
-    async def some_task(n):
-        n += 1
-        print(n)
+    @Task(seconds=10)
+    async def some_task(n)
+        await asyncio.sleep(n)
+        print(f'Slept for {n}!')
 
-    asyncio.run(some_task())
+    some_task.start(3)
+    some_task.loop.run_forever()
     ```
+
+    Attributes
+    ----------
+    seconds : Optional[int]
+        The amount of seconds specified.
+    hours : Optional[int]
+        The amount of hours specified.
+    minutes : Optional[int]
+        The amount of minutes specified.
+    loop : Optional[event loop]
+        The event loop to run the task on.
+        If left unspecified the `asyncio.get_event_loop()` will be used.
+    coro : Callable[..., Awaitable]
+        The coroutine function to run.
     """
     def __init__(self, seconds=0, hours=0, minutes=0, count=None, loop=None):
         if count is not None and count <= 0:

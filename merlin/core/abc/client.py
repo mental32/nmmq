@@ -10,6 +10,20 @@ from .packet import AbstractPacket
 
 
 class AbstractClient(metaclass=ABCMeta):
+    """An ABCMeta Mixin for anything that is a Client.
+
+    Attributes
+    ----------
+    HOSTNAME : str
+        The class default hostname for a client.
+        this is usually the result of `socket.gethostname()`
+    loop : `event loop`
+        The event loop to use and run on.
+    _network_stack : BaseNetwork
+        The clients copy of the network map.
+    _listeners : Dict[Any, List[Callable[..., Awaitable]]]
+        Internal bookkeeping for listeners.
+    """
     # Default hostname for a client is the system hostname.
     HOSTNAME: str = _socket_gethostname()
 
