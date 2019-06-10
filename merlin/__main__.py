@@ -89,6 +89,7 @@ def _assert_configuration(config: dict) -> None:
 @click.option('-c', '--config', default=None)
 @click.option('-s', '--serve', '--server', is_flag=True, default=False)
 def main(sources, config, serve):
+    """Application entry point."""
     if not sources and config is None:
         raise UsageError('Either source or config must be supplied')
 
