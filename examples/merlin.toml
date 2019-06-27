@@ -9,10 +9,16 @@
 #  - twitter
 backend =
 
-# `source` can be a path to a file or a directory
-# this path is relative to the configuration file.
+# `source` (string) must be a path to a file or directory
+# OR a list of string to files or directories.
+# the paths are relative to this configuration file.
 
 # source =
+
+# You can also specify rich source objects.
+[[app.source]]
+name = "AwesomeSource"
+path = "path/to/source"
 
 #################### DISCORD #####################
 
