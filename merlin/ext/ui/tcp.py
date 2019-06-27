@@ -61,7 +61,7 @@ class TcpServer:
                 return
 
     @Service.listener('starting')
-    async def bootstrap(self):
+    async def __tcp_bootstrap(self):
         async def nonce(self, r, w):
             raise NotImplementedError
 
