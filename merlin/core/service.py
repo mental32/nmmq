@@ -26,7 +26,27 @@ class Service:
 
     @staticmethod
     def listener(type_: Optional[OpCode] = None):
-        """A decorator that marks a function as an event listener."""
+        """A decorator that marks a function as an event listener.
+
+        Parameters
+        ----------
+        type_ : Optional[Union[OpCode, str]]
+            Either a specific OpCode to listen for
+            Or a specific broadcast with a string (e.g. `"starting"`)
+
+        Raises
+        ------
+        TypeError
+            Raised when an invalid type to listen for was passed in.
+            Or when a coroutine function wasn't passed into the returned decorator.
+
+        Returns
+        -------
+        decorator : Callable[Callable[..., Awaitable]]
+            A passive decorator that takes a coroutine function
+            and marks it by setting a `_listener_type` attribute
+            to the type passed in.
+        """
         if not isinstance(type_, str):
             try:
                 type_ = OpCode(type_)
@@ -35,7 +55,9 @@ class Service:
                     raise TypeError(f'Expected type `OpCode` got {type(type_)!r}')
 
         def wrapped(func):
-            # TODO: Type check the function to make sure its a coroutine function
+            if not inspect.iscoroutinefunction(func):
+                raise TypeError('`func` must be a coroutine function!')
+
             func._listner_type = type_
             return func
         return wrapped
@@ -47,19 +69,37 @@ class Service:
         return self.__client
 
     def listeners(self) -> Dict[OpCode, Callable]:
+        """Inspect a service instance for its listeners.
+
+        Returns
+        -------
+        listeners : Dict[Union[OpCode, str, None], Callable]
+            A :class:`dict` of all the listeners marked on this
+            instance.
+        """
         data = defaultdict(list)
 
-        for _, obj in inspect.getmembers(self):
-            if hasattr(obj, '_listner_type'):
-                tp = obj._listner_type
+        for _, obj in filter((lambda obj: hasattr(obj, '_listner_type')), inspect.getmembers(self)):
+            data[obj._listner_type].append(obj)
 
-                data[tp].append(obj)
-
-        return data
+        return dict(data)
 
 
-def load(path, *args, **kwargs):
-    """Given a path, filter and instantiate classes that derive from `Services`."""
+def load(path, *args, **kwargs) -> Tuple[Dict[Union[OpCode, str, None], Callable], Dict[str, Service]]:
+    r"""Given a path, filter and instantiate classes that derive from `Services`.
+
+    Parameters
+    ----------
+    \*args
+        The args to pass when instanciating a Service.
+    \*\*kwargs
+        The kwargs to pass when instanciating a Service.
+
+    Returns
+    -------
+    data : Tuple[Dict[Union[OpCode, str, None], Callable], Dict[str, Service]]
+        A tuple of the listeners and services respectively.
+    """
     def _filter(obj):
         return isinstance(obj, type) and obj is not Service and issubclass(obj, Service)
 
@@ -111,8 +151,8 @@ def load(path, *args, **kwargs):
     return dict(listeners), services
 
 
-def load_from(sequence, *args, **kwargs):
-    """Load services from a sequence of paths.
+def load_from(sequence, *args, **kwargs) -> Tuple[Dict[Union[OpCode, str, None], Callable], Dict[str, Service]]:
+    r"""Load services from a sequence of paths.
 
     .. note ::
         This is equivelent to calling :func:`load` in a loop
@@ -122,6 +162,15 @@ def load_from(sequence, *args, **kwargs):
     ----------
     sequence : Sequence[pathlib.Path]
         A sequence of paths.
+    \*args
+        The args to pass when instanciating a Service.
+    \*\*kwargs
+        The kwargs to pass when instanciating a Service.
+
+    Returns
+    -------
+    data : Tuple[Dict[Union[OpCode, str, None], Callable], Dict[str, Service]]
+        A tuple of the listeners and services respectively.
     """
     _listeners = defaultdict(list)
     _services = {}

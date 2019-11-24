@@ -4,8 +4,6 @@ import sys
 
 assert sys.version_info[:2], 'fatal: python3.6+ required'  # noqa
 
-import os
-import argparse
 import tempfile
 import shutil
 import pathlib
@@ -21,8 +19,9 @@ from click import UsageError
 from .core.tcp import serve as _tcp_serve
 from . import spawn
 
+
 def _resolve(string: str, *, is_dir: bool = True) -> pathlib.Path:
-    """Resolve a string to a filepath on disk"""
+    """Resolve a string to a filepath on disk."""
     if '://' in string:
         protocol = string[:string.index('://')]
 
@@ -50,11 +49,13 @@ def _resolve(string: str, *, is_dir: bool = True) -> pathlib.Path:
 
     return path
 
+
 def _resolve_config(string: str) -> dict:
     path = _resolve(string, is_dir=False)
 
     with open(str(path.absolute())) as file:
         return toml.load(file), path
+
 
 def _assert_configuration(config: dict) -> None:
     """Give a dictionary configuration assert that it satisfies the bare requirements.
@@ -82,11 +83,13 @@ def _assert_configuration(config: dict) -> None:
     elif not backend:
         raise ValueError
 
+
 @click.command(name='merlin')
 @click.argument('sources', nargs=-1)
 @click.option('-c', '--config', default=None)
 @click.option('-s', '--serve', '--server', is_flag=True, default=False)
 def main(sources, config, serve):
+    """Application entry point."""
     if not sources and config is None:
         raise UsageError('Either source or config must be supplied')
 
@@ -144,6 +147,7 @@ def main(sources, config, serve):
     finally:
         if source.exists() and source.parent.name == 'tmp':
             shutil.rmtree(str(source.absolute()))
+
 
 if __name__ == '__main__':
     main(prog_name='Merlin')

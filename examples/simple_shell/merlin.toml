@@ -2,12 +2,10 @@
 backend = "discord"  # Could be a list of names to fallback on.
 source = "tcp.py"  # We don't have much here, just the one file.
 
-[app.config.discord]
-# Channel constants are a path string "CHANNEL_ID"
-# OR a list of them: ["CHANNEL_ID", ...]
-# OR a refrence to a channel: "channel://NAME"
-
+[config.discord]
 inbound = "channel"
+
+# When left out, `outbound` uses the same value as `inbound`
 # outbound = inbound
 
 token = "token"
