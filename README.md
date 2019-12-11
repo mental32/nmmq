@@ -1,25 +1,77 @@
-# Merlin
+# NMMQ
+## Not My Messaging Queue
 
-> "The client application that lets you build virtual networks and deploy services over them."
+## Index
+
+  - [Brief](#Brief)
+  - [Examples](#Examples)
+
+## Brief
+
+NMMQ (pronounced _enn-emm-que_) is a ZMQ inspired message queue that takes a
+"parasitic" approach to hosting.
+
+NMMQ was designed in mind to allow internet-enabled applications to communicate
+without the hassle of managing system infrastructure e.g. VPS, AWS, Cloudflare.
+I wrote it originally a while back when I was a broke student and didn't just
+wanted to network my machines without me caring about centralized/paid hosting.
+
+## Examples
+
+### Discord
+
+Lets write a small client/server example using Discord as our backend.
+
+The code will be divided into three parts:
+
+  - `./client.py`
+  - `./server.py`
+  - `./utils.py`
+
+#### Backend
+
+```py
+import json
+from typing import Any
+
+import nmmq
+from nmmq.ext.discord import DiscordBackend
 
 
-Merlin is a client side application that operates parasitically over much heavier services (discord, slack, etc).
+class Backend(DiscordBackend):
+    def serialize(self, data: Any) -> Any:
+        return json.dumps(data)
 
-Alternatively merlin supports running in "raw" mode (the serverside) if you dont want to get in trouble with the fuzz.
+    def deserialize(self, data: Any) -> Any:
+        return json.loads(data)
+```
 
-The pitch:
+#### Client
 
- - Its a poor mans solution to server or database hosting.
- - Designed for building "decentralised" apps
- - Easily extendable with the inbuilt framework.
- - Comes with a batteries included approach.
+```py
+import nmmq
+from . import utils
 
-## Example
+backend = utils.Backend(token="TOKEN")
 
-1) Git clone this repostory
-2) run `sudo make install`
-3) Now you can run the example: `merlin ./examples/simple_rtcp_shell`
+socket = nmmq.PullSocket(backend=backend)
+socket.connect()
 
-> I highly suggest editing the configuration file before running it.
->
-> Specifically changing the `inbound`, `token` and possibly `bot` settings depending on the account.
+for message in socket:
+    print(f"{message=!r}")
+```
+
+#### Server
+
+```py
+import nmmq
+from . import utils
+
+backend = Backend(token="TOKEN")
+
+socket = nmmq.PushSocket(backend=backend)
+socket.connect()
+
+for char in "Hello, World!":
+    socket.send(char)
+```
